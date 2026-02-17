@@ -844,7 +844,11 @@ def align_brfss_features(df: pd.DataFrame):
 
 def brfss_shared_preprocessing(df: pd.DataFrame) -> pd.DataFrame:
     """Shared preprocessing function for BRFSS data tasks."""
-    df = df[_BRFSS_INPUT_FEATURES].copy()
+    df = df[_BRFSS_INPUT_FEATURES]
+
+    # Drop rows where drinks per week is unknown/refused/missing;
+    # this uses a different missingness code from other variables.
+    df = df[~(df["DRNK_PER_WEEK"] == 99900)].copy()
 
     # Sensitive columns
     # df["_PRACE1"] = (df["_PRACE1"] == 1).astype(int)
@@ -854,10 +858,6 @@ def brfss_shared_preprocessing(df: pd.DataFrame) -> pd.DataFrame:
     # map 88 to 0 because it means zero (i.e. zero bad health days)
     df["PHYSHLTH"] = df["PHYSHLTH"].replace({88: 0})
     df["MENTHLTH"] = df["MENTHLTH"].replace({88: 0})
-
-    # Drop rows where drinks per week is unknown/refused/missing;
-    # this uses a different missingness code from other variables.
-    df = df[~(df["DRNK_PER_WEEK"] == 99900)]
 
     # Some questions are not asked for various reasons
     # (see notes under "BLANK" for that question in data dictionary);
