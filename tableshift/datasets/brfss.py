@@ -844,7 +844,7 @@ def align_brfss_features(df: pd.DataFrame):
 
 def brfss_shared_preprocessing(df: pd.DataFrame) -> pd.DataFrame:
     """Shared preprocessing function for BRFSS data tasks."""
-    df = df[_BRFSS_INPUT_FEATURES]
+    df = df[_BRFSS_INPUT_FEATURES].copy()
 
     # Sensitive columns
     # df["_PRACE1"] = (df["_PRACE1"] == 1).astype(int)
