@@ -867,7 +867,7 @@ def brfss_shared_preprocessing(df: pd.DataFrame) -> pd.DataFrame:
 
     # Remove leading underscores from column names
     renames = {c: re.sub("^_", "", c) for c in df.columns if c.startswith("_")}
-    df.rename(columns=renames, inplace=True)
+    df = df.rename(columns=renames)
 
     return df
 
