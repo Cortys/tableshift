@@ -48,7 +48,7 @@ def download_file(url: str, dirpath: str, if_not_exist=True, dest_file_name=None
 
 def read_xpt(fp) -> pd.DataFrame:
     assert os.path.exists(fp), "file does not exist %s" % fp
-    return pd.read_sas(fp, format="xport")  # ty:ignore[invalid-return-type]
+    return pd.read_sas(fp, format="xport", encoding="ISO-8859-1")  # ty:ignore[invalid-return-type]
 
 
 def run_in_subprocess(cmd):
@@ -76,10 +76,14 @@ def make_uid(name: str, splitter: Splitter, replace_chars="*/:'$!") -> str:
     if isinstance(splitter, DomainSplitter) and splitter.is_explicit_split():
         attrs = {
             "domain_split_varname": splitter.domain_split_varname,
-            "domain_split_ood_value": "".join(str(x) for x in splitter.domain_split_ood_values),
+            "domain_split_ood_value": "".join(
+                str(x) for x in splitter.domain_split_ood_values
+            ),
         }
         if splitter.domain_split_id_values:
-            attrs["domain_split_id_values"] = "".join(str(x) for x in splitter.domain_split_id_values)
+            attrs["domain_split_id_values"] = "".join(
+                str(x) for x in splitter.domain_split_id_values
+            )
         uid += "".join(f"{k}_{v}" for k, v in attrs.items())
     elif isinstance(splitter, DomainSplitter) and splitter.is_threshold_split():
         uid += f"{splitter.domain_split_varname}gt{splitter.domain_split_gt_thresh}"
