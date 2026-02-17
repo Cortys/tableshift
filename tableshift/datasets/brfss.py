@@ -875,7 +875,7 @@ def brfss_shared_preprocessing(df: pd.DataFrame) -> pd.DataFrame:
 def preprocess_brfss_diabetes(df: pd.DataFrame):
     df = brfss_shared_preprocessing(df)
 
-    df["DIABETES"].replace({2: 0, 3: 0, 4: 0}, inplace=True)
+    df.replace({"DIABETES": {2: 0, 3: 0, 4: 0}}, inplace=True)
     # na_values have not been mapped yet; need to access and use these
     df = df[~df["DIABETES"].isin(BRFSS_DIABETES_FEATURES.target_feature.na_values)]
     df.dropna(subset=["DIABETES"], inplace=True)
