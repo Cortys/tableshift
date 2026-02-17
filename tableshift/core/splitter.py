@@ -14,7 +14,7 @@ def concat_columns(data: pd.DataFrame) -> pd.DataFrame:
 
     This is useful, for example, as a preprocessing step for performing
     stratified sampling over labels + sensitive attributes."""
-    return data.agg(lambda x: ''.join(x.values.astype(str)), axis=1).T
+    return data.agg(lambda x: "".join(x.values.astype(str)), axis=1).T
 
 
 def idx_where_in(x: pd.Series, vals: Sequence[Any]) -> np.ndarray:
@@ -42,13 +42,19 @@ def idx_where_not_in(x: pd.Series, vals: Sequence[Any]) -> np.ndarray:
 @dataclass
 class Splitter:
     """Splitter for non-domain splits."""
+
     val_size: float
     random_state: int
 
     @abstractmethod
-    def __call__(self, data: pd.DataFrame, labels: pd.Series,
-                 groups: pd.DataFrame = None, *args, **kwargs) -> Mapping[
-        str, List[int]]:
+    def __call__(
+        self,
+        data: pd.DataFrame,
+        labels: pd.Series,
+        groups: pd.DataFrame | None = None,
+        *args,
+        **kwargs,
+    ) -> Mapping[str, List[int]]:
         """Split a dataset.
 
         Returns a dictionary mapping split names to indices of the data points
@@ -71,25 +77,30 @@ class FixedSplitter(Splitter):
     to validation, due to the prespecified train/test split).
     """
 
-    def __init__(self, split_colname: str="Split", **kwargs):
+    def __init__(self, split_colname: str = "Split", **kwargs):
         self.split_colname = split_colname
         super().__init__(**kwargs)
 
-    def __call__(self, data: pd.DataFrame, labels: pd.Series,
-                 groups: pd.DataFrame = None, *args, **kwargs) -> Mapping[
-        str, List[int]]:
+    def __call__(
+        self,
+        data: pd.DataFrame,
+        labels: pd.Series,
+        groups: pd.DataFrame = None,
+        *args,
+        **kwargs,
+    ) -> Mapping[str, List[int]]:
 
         assert self.split_colname in data.columns, "data is missing 'Split' column."
         assert all(np.isin(data[self.split_colname], ["train", "test"]))
 
         test_idxs = np.nonzero((data[self.split_colname] == "test").values)[0]
-        train_val_idxs = \
-            np.nonzero((data[self.split_colname] == "train").values)[0]
+        train_val_idxs = np.nonzero((data[self.split_colname] == "train").values)[0]
 
         train_idxs, val_idxs = train_test_split(
             train_val_idxs,
             train_size=(1 - self.val_size),
-            random_state=self.random_state)
+            random_state=self.random_state,
+        )
 
         del train_val_idxs
         return {"train": train_idxs, "validation": val_idxs, "test": test_idxs}
@@ -105,8 +116,9 @@ def _check_input_indices(data: pd.DataFrame):
     """
     idxs = np.array(sorted(data.index.tolist()))
     expected = np.arange(len(data))
-    assert np.all(idxs == expected), "DataFrame is indexed non-sequentially;" \
-                                     "try passing the dataframe after "
+    assert np.all(idxs == expected), (
+        "DataFrame is indexed non-sequentially;try passing the dataframe after "
+    )
     return
 
 
@@ -116,22 +128,27 @@ class RandomSplitter(Splitter):
 
     @property
     def train_size(self):
-        return 1. - (self.val_size + self.test_size)
+        return 1.0 - (self.val_size + self.test_size)
 
-    def __call__(self, data: pd.DataFrame, labels: pd.Series,
-                 groups: pd.DataFrame = None, *args, **kwargs
-                 ) -> Mapping[str, List[int]]:
+    def __call__(
+        self,
+        data: pd.DataFrame,
+        labels: pd.Series,
+        groups: pd.DataFrame = None,
+        *args,
+        **kwargs,
+    ) -> Mapping[str, List[int]]:
         _check_input_indices(data)
 
         idxs = data.index.tolist()
         train_val_idxs, test_idxs = train_test_split(
-            idxs,
-            test_size=self.test_size,
-            random_state=self.random_state)
+            idxs, test_size=self.test_size, random_state=self.random_state
+        )
         train_idxs, val_idxs = train_test_split(
             train_val_idxs,
             train_size=self.train_size / (self.train_size + self.val_size),
-            random_state=self.random_state)
+            random_state=self.random_state,
+        )
         del train_val_idxs
         return {"train": train_idxs, "validation": val_idxs, "test": test_idxs}
 
@@ -144,6 +161,7 @@ class DomainSplitter(Splitter):
     are placed in the target (test) set; the remaining observations are split
     between the train, validation, and eval set.
     """
+
     id_test_size: float  # The in-domain test set.
     domain_split_varname: str
 
@@ -157,8 +175,9 @@ class DomainSplitter(Splitter):
     drop_domain_split_col: bool = True  # If True, drop column after splitting.
     ood_val_size: float = 0  # Fraction of OOD data to use for OOD validation set.
 
-    def _split_from_explicit_values(self, domain_vals: pd.Series
-                                    ) -> Tuple[np.ndarray, np.ndarray]:
+    def _split_from_explicit_values(
+        self, domain_vals: pd.Series
+    ) -> Tuple[np.ndarray, np.ndarray]:
 
         # Check that either in- or out-of-domain values are specified.
         assert self.is_explicit_split()
@@ -167,10 +186,11 @@ class DomainSplitter(Splitter):
         # explicit list of values to specify ID/OOD.
         assert self.domain_split_gt_thresh is None
 
-        assert isinstance(self.domain_split_ood_values, tuple) \
-               or isinstance(self.domain_split_ood_values, list), \
-            "domain_split_ood_values must be an iterable type; got type {}".format(
-                type(self.domain_split_ood_values))
+        assert isinstance(self.domain_split_ood_values, tuple) or isinstance(
+            self.domain_split_ood_values, list
+        ), "domain_split_ood_values must be an iterable type; got type {}".format(
+            type(self.domain_split_ood_values)
+        )
 
         ood_vals = self.domain_split_ood_values
 
@@ -182,21 +202,22 @@ class DomainSplitter(Splitter):
 
         if self.domain_split_id_values is not None:
             # Check that there is no overlap between train/test domains.
-            assert not set(self.domain_split_id_values).intersection(
-                set(ood_vals))
+            assert not set(self.domain_split_id_values).intersection(set(ood_vals))
 
             id_idxs = idx_where_in(domain_vals, self.domain_split_id_values)
             if not len(id_idxs):
                 raise ValueError(
                     f"No ID observations with {self.domain_split_varname} "
                     f"values {self.domain_split_id_values}; are the values of "
-                    f"same type as the column type of {domain_vals.dtype}?")
+                    f"same type as the column type of {domain_vals.dtype}?"
+                )
         else:
             id_idxs = idx_where_not_in(domain_vals, ood_vals)
             if not len(id_idxs):
                 raise ValueError(
                     f"No ID observations with {self.domain_split_varname} "
-                    f"values not in {ood_vals}.")
+                    f"values not in {ood_vals}."
+                )
 
         if not len(ood_idxs):
             vals = domain_vals.unique()
@@ -204,12 +225,14 @@ class DomainSplitter(Splitter):
                 f"No OOD observations with {self.domain_split_varname} values "
                 f"{ood_vals}; are the values of same type"
                 f" as the column type of {domain_vals.dtype}? Examples of "
-                f"values in {self.domain_split_varname}: {vals[:10]}")
+                f"values in {self.domain_split_varname}: {vals[:10]}"
+            )
 
         return id_idxs, ood_idxs
 
-    def _split_from_threshold(self, domain_vals: pd.Series) -> Tuple[
-        np.ndarray, np.ndarray]:
+    def _split_from_threshold(
+        self, domain_vals: pd.Series
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Apply a threshold.
 
         Values are OOD if > self.domain_split_gt_thresh, else ID."""
@@ -221,26 +244,31 @@ class DomainSplitter(Splitter):
                 f"detected missing values in domain column prior"
                 "to splitting; this can result in unexpected behavior"
                 "for threshold-based splits. Any nan values will"
-                f"have OOD value: {np.nan > self.domain_split_gt_thresh}")
+                f"have OOD value: {np.nan > self.domain_split_gt_thresh}"
+            )
 
-        ood_idxs = \
-            np.nonzero((domain_vals > self.domain_split_gt_thresh).values)[0]
-        id_idxs = \
-            np.nonzero((domain_vals <= self.domain_split_gt_thresh).values)[0]
+        ood_idxs = np.nonzero((domain_vals > self.domain_split_gt_thresh).values)[0]
+        id_idxs = np.nonzero((domain_vals <= self.domain_split_gt_thresh).values)[0]
         return id_idxs, ood_idxs
 
     def is_explicit_split(self) -> bool:
         """Helper function to check whether an explicit split is used."""
         return (self.domain_split_ood_values is not None) or (
-                self.domain_split_id_values is not None)
+            self.domain_split_id_values is not None
+        )
 
     def is_threshold_split(self) -> bool:
         """Helper function to check whether a threshold-based split is used."""
-        return (self.domain_split_gt_thresh is not None)
+        return self.domain_split_gt_thresh is not None
 
-    def __call__(self, data: pd.DataFrame, labels: pd.Series,
-                 groups: pd.DataFrame = None, *args, **kwargs) -> Mapping[
-        str, List[int]]:
+    def __call__(
+        self,
+        data: pd.DataFrame,
+        labels: pd.Series,
+        groups: pd.DataFrame = None,
+        *args,
+        **kwargs,
+    ) -> Mapping[str, List[int]]:
         assert "domain_labels" in kwargs, "domain labels are required."
         domain_vals = kwargs.pop("domain_labels")
         assert isinstance(domain_vals, pd.Series)
@@ -254,31 +282,36 @@ class DomainSplitter(Splitter):
         else:
             raise NotImplementedError("Invalid domain split specified.")
 
-        assert not set(id_idxs).intersection(ood_idxs), "sanity check for " \
-                                                        "nonoverlapping " \
-                                                        "domain split"
-        assert not set(domain_vals.iloc[id_idxs]) \
-            .intersection(domain_vals.iloc[ood_idxs]), "sanity check for no " \
-                                                       "domain leakage"
+        assert not set(id_idxs).intersection(ood_idxs), (
+            "sanity check for nonoverlapping domain split"
+        )
+        assert not set(domain_vals.iloc[id_idxs]).intersection(
+            domain_vals.iloc[ood_idxs]
+        ), "sanity check for no domain leakage"
 
         train_idxs, id_valid_eval_idxs = train_test_split(
-            id_idxs, test_size=(self.val_size + self.id_test_size),
-            random_state=self.random_state)
+            id_idxs,
+            test_size=(self.val_size + self.id_test_size),
+            random_state=self.random_state,
+        )
 
         valid_idxs, id_test_idxs = train_test_split(
             id_valid_eval_idxs,
             test_size=self.id_test_size / (self.val_size + self.id_test_size),
-            random_state=self.random_state)
+            random_state=self.random_state,
+        )
 
-        outputs = {"train": train_idxs, "validation": valid_idxs,
-                   "id_test": id_test_idxs}
+        outputs = {
+            "train": train_idxs,
+            "validation": valid_idxs,
+            "id_test": id_test_idxs,
+        }
 
         # Out-of-distribution splits
         if self.ood_val_size:
             ood_test_idxs, ood_valid_idxs = train_test_split(
-                ood_idxs,
-                test_size=self.ood_val_size,
-                random_state=self.random_state)
+                ood_idxs, test_size=self.ood_val_size, random_state=self.random_state
+            )
             outputs["ood_test"] = ood_test_idxs
             outputs["ood_validation"] = ood_valid_idxs
 

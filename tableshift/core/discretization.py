@@ -187,7 +187,7 @@ class KBinsDiscretizer(TransformerMixin, BaseEstimator):
         self : object
             Returns the instance itself.
         """
-        X = validate_data(self, X, dtype="numeric", force_all_finite=False)
+        X = validate_data(self, X, dtype="numeric", ensure_all_finite=False)
 
         supported_dtype = (np.float64, np.float32)
         if self.dtype in supported_dtype:
@@ -281,7 +281,7 @@ class KBinsDiscretizer(TransformerMixin, BaseEstimator):
                 bin_edges[jj] = np.asarray(np.percentile(column, quantiles))
 
             elif self.strategy == "kmeans":
-                from ..cluster import KMeans  # fixes import loops
+                from sklearn.cluster import KMeans  # fixes import loops
 
                 # Deterministic initialization with uniform spacing
                 uniform_edges = np.linspace(col_min, col_max, n_bins[jj] + 1)
@@ -318,7 +318,7 @@ class KBinsDiscretizer(TransformerMixin, BaseEstimator):
                     else np.arange(0, self.n_bins_)
                     for jj in range(n_features)
                 ],
-                sparse=self.encode == "onehot",
+                sparse_output=self.encode == "onehot",
                 dtype=output_dtype,
             )
             # Fit the OneHotEncoder with toy datasets
@@ -386,7 +386,7 @@ class KBinsDiscretizer(TransformerMixin, BaseEstimator):
         # check input and attribute dtypes
         dtype = (np.float64, np.float32) if self.dtype is None else self.dtype
         Xt = validate_data(
-            self, X, copy=True, dtype=dtype, reset=False, force_all_finite=False
+            self, X, copy=True, dtype=dtype, reset=False, ensure_all_finite=False
         )
 
         bin_edges = self.bin_edges_
@@ -448,7 +448,7 @@ class KBinsDiscretizer(TransformerMixin, BaseEstimator):
             bin_centers = (bin_edges[1:] + bin_edges[:-1]) * 0.5
             column = Xinv[:, jj]
             column = bin_centers[np.int_(column)]
-            column[Xinv[:, jj] == -1] = np.NaN
+            column[Xinv[:, jj] == -1] = np.nan
             Xinv[:, jj] = bin_centers[np.int_(column)]
 
         return Xinv
