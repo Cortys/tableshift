@@ -379,7 +379,7 @@ class NHANESDataSource(DataSource):
             src_df = dfs[0]
             try:
                 logging.info(f"joining {len(dfs)} dataframes for {year}")
-                df = src_df.join(dfs[1:], how="outer")
+                df = src_df.join(dfs[1:], how="outer").copy()
                 df["nhanes_year"] = int(year)
                 logging.info("finished joins")
                 df_list.append(df)
