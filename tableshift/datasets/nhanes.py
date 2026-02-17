@@ -348,6 +348,8 @@ def _merge_ridreth_features(df: pd.DataFrame) -> pd.DataFrame:
         race_col = df["RIDRETH1"]
         df.drop(columns=["RIDRETH1"], inplace=True)
 
+    df = df.copy()
+
     df["RIDRETH_merged"] = race_col
     return df
 
