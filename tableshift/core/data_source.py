@@ -134,7 +134,7 @@ class OfflineDataSource(DataSource):
         raise
 
 
-class ANESDataSource(OfflineDataSource):
+class ANESDataSource(DataSource):
     def __init__(
         self,
         years: Optional[Sequence] = None,
