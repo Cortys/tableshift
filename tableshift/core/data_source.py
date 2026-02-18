@@ -151,6 +151,20 @@ class ANESDataSource(OfflineDataSource):
         self.years = years
         super().__init__(resources=resources, preprocess_fn=preprocess_fn, **kwargs)
 
+    def _download_if_not_cached(self):
+        # location of the local zip file
+        file = "anes_timeseries_cdf_csv_20220916"
+        utils.download_file(
+            f"https://electionstudies.org/{file}/",
+            self.cache_dir,
+            dest_file_name=f"{file}.zip",
+        )
+        zip_fp = os.path.join(self.cache_dir, f"{file}.zip")
+        # where to unzip the file to
+        unzip_dest = os.path.join(self.cache_dir, file)
+        with zipfile.ZipFile(zip_fp, "r") as zf:
+            zf.extractall(unzip_dest)
+
     def _load_data(self) -> pd.DataFrame:
         fp = os.path.join(self.cache_dir, self.resources[0])
         df = pd.read_csv(fp, low_memory=False, na_values=(" "))
@@ -567,7 +581,7 @@ class PhysioNetDataSource(DataSource):
             # download the training data
             cmd = (
                 "wget -r -N -c -np https://physionet.org/files/challenge"
-                f"-2019/1.0.0/training/ -P={self.cache_dir}"
+                f"-2019/1.0.0/training/ -P {self.cache_dir}"
             )
             utils.run_in_subprocess(cmd)
         else:
