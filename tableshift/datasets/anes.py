@@ -778,7 +778,7 @@ ANES_FEATURES = FeatureList(
 
 
 def preprocess_anes(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.dropna(subset=[ANES_FEATURES.target])
+    df = df.dropna(subset=[ANES_FEATURES.target]).copy()
     df[ANES_FEATURES.target] = (df[ANES_FEATURES.target].astype(float) == 2.0).astype(
         int
     )
