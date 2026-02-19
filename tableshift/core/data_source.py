@@ -678,7 +678,7 @@ class MIMICExtractDataSource(OfflineDataSource):
         return df_out
 
 
-class HELOCDataSource(OfflineDataSource):
+class HELOCDataSource(KaggleDataSource):
     """FICO Home Equity Line of Credit data source.
 
     To obtain data access, visit
@@ -686,10 +686,16 @@ class HELOCDataSource(OfflineDataSource):
     """
 
     def __init__(self, preprocess_fn=preprocess_heloc, **kwargs):
-        super().__init__(preprocess_fn=preprocess_fn, **kwargs)
+        super().__init__(
+            kaggle_dataset_name="averkiyoliabev/home-equity-line-of-creditheloc",
+            preprocess_fn=preprocess_fn,
+            **kwargs,
+        )
 
     def _load_data(self) -> pd.DataFrame:
-        filename = os.path.join(self.cache_dir, "heloc_dataset_v1.csv")
+        filename = os.path.join(
+            self.cache_dir, self.kaggle_dataset_name, "heloc_dataset_v1 (1).csv"
+        )
         assert os.path.exists(
             filename
         ), f"""file {filename} does not exist; see the TableShift 
