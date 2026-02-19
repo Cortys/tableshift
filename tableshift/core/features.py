@@ -9,10 +9,21 @@ from typing import List, Any, Sequence, Optional, Mapping, Tuple, Union, Dict
 import numpy as np
 import pandas as pd
 from pandas.api.types import CategoricalDtype as cat_dtype
-from pandas.api.types import is_object_dtype, is_float_dtype, is_integer_dtype, is_categorical_dtype, is_bool_dtype
+from pandas.api.types import (
+    is_object_dtype,
+    is_float_dtype,
+    is_integer_dtype,
+    is_categorical_dtype,
+    is_bool_dtype,
+)
 from sklearn.compose import ColumnTransformer, make_column_selector
-from sklearn.preprocessing import OneHotEncoder, StandardScaler, LabelEncoder, \
-    FunctionTransformer, OrdinalEncoder
+from sklearn.preprocessing import (
+    OneHotEncoder,
+    StandardScaler,
+    LabelEncoder,
+    FunctionTransformer,
+    OrdinalEncoder,
+)
 from tableshift.core.discretization import KBinsDiscretizer
 from tableshift.core.utils import sub_illegal_chars
 
@@ -22,22 +33,24 @@ def _contains_missing_values(df: pd.DataFrame) -> bool:
 
 
 def safe_cast(x: pd.Series, dtype):
-    logging.debug(f"casting feature {x.name} from dtype "
-                  f"{x.dtype.name} to dtype {dtype.__name__}")
+    logging.debug(
+        f"casting feature {x.name} from dtype {x.dtype.name} to dtype {dtype.__name__}"
+    )
     if dtype == cat_dtype:
         return x.apply(str).astype("category")
     else:
         try:
             return x.astype(dtype)
         except pd.errors.IntCastingNaNError as e:
-            if 'int' in dtype.__name__.lower():
+            if "int" in dtype.__name__.lower():
                 # Case: integer with nan values; cast to float instead. Integers
                 # are not nullable in Pandas (but "Int64" type is).
                 logging.warning(
                     f"cannot cast feature {x.name} to "
                     f"dtype {dtype.__name__} due to missing values; "
                     f"attempting cast to float instead. Recommend changing"
-                    f"the feature spec for this feature to type float.")
+                    f"the feature spec for this feature to type float."
+                )
                 return x.astype(float)
 
 
@@ -109,8 +122,9 @@ class Feature:
 
     def fillna(self, data: pd.Series) -> pd.Series:
         """Apply the list of na_values, filling these values in data with np.nan."""
-        logging.debug(f"replacing missing values of {self.na_values} "
-                      f"for feature {self.name}")
+        logging.debug(
+            f"replacing missing values of {self.na_values} for feature {self.name}"
+        )
         # Handles case where na values have misspecified type (i.e. float vs. int);
         # we would like the filling to be robust to these kinds of misspecification.
         if not isinstance(data.dtype, cat_dtype):
@@ -134,24 +148,33 @@ class FeatureList:
     documentation: str = None  # optional link to docs
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, target_colname: str,
-                       names_extended: Dict[Any, str] = None,
-                       value_mapping: Dict[Any, Dict] = None,
-                       **kwargs):
+    def from_dataframe(
+        cls,
+        df: pd.DataFrame,
+        target_colname: str,
+        names_extended: Dict[Any, str] = None,
+        value_mapping: Dict[Any, Dict] = None,
+        **kwargs,
+    ):
         if names_extended is None:
             names_extended = {}
         if value_mapping is None:
             value_mapping = {}
-        assert target_colname in df.columns, \
+        assert target_colname in df.columns, (
             f"target colname {target_colname} not in columns {df.columns}"
+        )
 
         dtypes = df.dtypes.to_dict()
-        features = [Feature(name,
-                            get_dtype(dtype),
-                            is_target=name == target_colname,
-                            name_extended=names_extended.get(name),
-                            value_mapping=value_mapping.get(name))
-                    for name, dtype in dtypes.items()]
+        features = [
+            Feature(
+                name,
+                get_dtype(dtype),
+                is_target=name == target_colname,
+                name_extended=names_extended.get(name),
+                value_mapping=value_mapping.get(name),
+            )
+            for name, dtype in dtypes.items()
+        ]
 
         return cls(features=features, **kwargs)
 
@@ -162,18 +185,18 @@ class FeatureList:
             with open(file, "w") as f:
                 for feature in self.features:
                     output_dict = copy.deepcopy(feature.__dict__)
-                    kind = output_dict.pop('kind')
+                    kind = output_dict.pop("kind")
                     kind_str = getattr(kind, "name", kind.__name__)
-                    output_dict['kind'] = kind_str
+                    output_dict["kind"] = kind_str
                     f.write(json.dumps(output_dict) + "\n")
         else:
             # Case: file is a handle; try to write to it directly.
             try:
                 for feature in self.features:
                     output_dict = copy.deepcopy(feature.__dict__)
-                    kind = output_dict.pop('kind')
+                    kind = output_dict.pop("kind")
                     kind_str = getattr(kind, "name", kind.__name__)
-                    output_dict['kind'] = kind_str
+                    output_dict["kind"] = kind_str
                     line = json.dumps(output_dict) + "\n"
                     file.write(line.encode())
             except Exception as e:
@@ -191,19 +214,21 @@ class FeatureList:
         # is True, we attempt to recover these.
         if auto_cast_value_mappings:
             for feature_dict in feature_dicts:
-                if feature_dict['value_mapping']:
-                    feature_dict['value_mapping'] = {cast_number(k): cast_number(v) for k, v in
-                                                     feature_dict['value_mapping'].items()}
+                if feature_dict["value_mapping"]:
+                    feature_dict["value_mapping"] = {
+                        cast_number(k): cast_number(v)
+                        for k, v in feature_dict["value_mapping"].items()
+                    }
 
         # For each element in feature_dicts, create the actual class object
         # corresponding to the feature kind, from its string representation.
 
         for i in range(len(feature_dicts)):
-            kind = feature_dicts[i]['kind']
-            if kind in ('float', 'int', 'bool'):
-                feature_dicts[i]['kind'] = eval(kind)
+            kind = feature_dicts[i]["kind"]
+            if kind in ("float", "int", "bool"):
+                feature_dicts[i]["kind"] = eval(kind)
             elif kind == "category":
-                feature_dicts[i]['kind'] = cat_dtype
+                feature_dicts[i]["kind"] = cat_dtype
             else:
                 raise ValueError(f"unexpected kind: {kind}")
 
@@ -246,21 +271,23 @@ class FeatureList:
         raise ValueError(f"feature {item} not in features {self.names}.")
 
     def __add__(self, other):
-        if (self.target and other.target):
+        if self.target and other.target:
             raise ValueError("cannot add two lists which both contain targets.")
         overlap = set(self.names).intersection(set(other.names))
-        assert not overlap, \
-            "cannot add lists with overlapping feature names; remove the " \
-            "following features from one of the FeatureLists: {}".format(list(
-                overlap))
-        return FeatureList(self.features + other.features,
-                           documentation=self.documentation)
+        assert not overlap, (
+            "cannot add lists with overlapping feature names; remove the "
+            "following features from one of the FeatureLists: {}".format(list(overlap))
+        )
+        return FeatureList(
+            self.features + other.features, documentation=self.documentation
+        )
 
     def __iter__(self):
         yield from self.features
 
-    def apply_schema(self, df: pd.DataFrame,
-                     passthrough_columns: Sequence[str] = None) -> pd.DataFrame:
+    def apply_schema(
+        self, df: pd.DataFrame, passthrough_columns: Sequence[str] = None
+    ) -> pd.DataFrame:
         """Apply the schema defined in the FeatureList to the DataFrame.
 
         Subsets to only the columns corresponding to features in FeatureList,
@@ -270,9 +297,13 @@ class FeatureList:
         if not passthrough_columns:
             passthrough_columns = []
 
-        drop_cols = list(set(x for x in df.columns
-                             if x not in self.names
-                             and x not in passthrough_columns))
+        drop_cols = list(
+            set(
+                x
+                for x in df.columns
+                if x not in self.names and x not in passthrough_columns
+            )
+        )
         if drop_cols:
             logging.info(f"dropping columns not in FeatureList: {drop_cols}")
             df.drop(columns=drop_cols, inplace=True)
@@ -280,8 +311,9 @@ class FeatureList:
             logging.debug(f"checking feature {f.name}")
             if f.name not in df.columns:
                 # Case: expected this feature, and it is missing.
-                raise ValueError(f"feature {f.name} not present in data with "
-                                 f"columns {df.columns}.")
+                raise ValueError(
+                    f"feature {f.name} not present in data with columns {df.columns}."
+                )
 
             # Fill na values (before casting)
             if f.na_values:
@@ -298,8 +330,7 @@ class FeatureList:
         return df
 
 
-def _transformed_columns_to_numeric(df, prefix: str,
-                                    to_type=float) -> pd.DataFrame:
+def _transformed_columns_to_numeric(df, prefix: str, to_type=float) -> pd.DataFrame:
     """Postprocess the results of a ColumnTransformer.
 
     ColumnTransformers convert their output to 'object' dtype, even when the
@@ -316,8 +347,10 @@ def _transformed_columns_to_numeric(df, prefix: str,
     one-hot-encoded columns.
     """
     cols_to_transform = [c for c in df.columns if c.startswith(prefix)]
-    logging.debug(f"casting {len(cols_to_transform)} columns to type {to_type}"
-                  "; this can be slow for large datasets.")
+    logging.debug(
+        f"casting {len(cols_to_transform)} columns to type {to_type}"
+        "; this can be slow for large datasets."
+    )
     for i, c in enumerate(cols_to_transform):
         logging.debug(f"casting feature {i} of {len(cols_to_transform)} {c}")
         df[c] = df[c].astype(to_type)
@@ -333,8 +366,9 @@ class PreprocessorConfig:
     # Options: normalize, passthrough, map_values.
     numeric_features: str = "normalize"
     domain_labels: str = "label_encode"
-    passthrough_columns: Union[
-        str, List[str]] = None  # Feature names to passthrough, or "all".
+    passthrough_columns: Union[str, List[str]] = (
+        None  # Feature names to passthrough, or "all".
+    )
     # If "rows", drop rows containing na values, if "columns", drop columns
     # containing na values; if None do not do anything for missing values.
     dropna: Union[str, None] = "rows"
@@ -354,7 +388,9 @@ class PreprocessorConfig:
     min_frequency: float = None  # see OneHotEncoder.min_frequency
     max_categories: int = None  # see OneHotEncoder.max_categories
     n_bins: int = 5  # see KBinsDiscretizer.num_bins
-    sub_illegal_chars: bool=True  # whether to replace illegal characters in column names
+    sub_illegal_chars: bool = (
+        True  # whether to replace illegal characters in column names
+    )
 
 
 def map_values(df: pd.DataFrame, mapping: dict, strict=True) -> pd.DataFrame:
@@ -368,15 +404,17 @@ def map_values(df: pd.DataFrame, mapping: dict, strict=True) -> pd.DataFrame:
             f"Got the following unmapped values for column with first rows {column.head()}: {unmapped_values}."
             "If this is intended (and you want these values mapped to None), set strict=False. If you"
             "want these values mapped to themselves (identity mapping), explicitly specify this"
-            "in your mapping, or set map_values=False.")
+            "in your mapping, or set map_values=False."
+        )
     elif unmapped_values:
         # Case: there are unmapped values but not in 'strict' mode; raise a warning.
         logging.warning(
-            f'got value(s) in column {df.columns[0]} with no'
-            f'mapping: {unmapped_values}; will pass these values through '
-            f'instead. If this is intended, then no action is required. '
-            f'For guaranteed behavior (to ensure the value is not mapped), '
-            f'it is best to define this explicitly in your mapping.')
+            f"got value(s) in column {df.columns[0]} with no"
+            f"mapping: {unmapped_values}; will pass these values through "
+            f"instead. If this is intended, then no action is required. "
+            f"For guaranteed behavior (to ensure the value is not mapped), "
+            f"it is best to define this explicitly in your mapping."
+        )
         mapping.update({x: x for x in unmapped_values})
 
     return column.map(mapping).unstack()
@@ -385,36 +423,42 @@ def map_values(df: pd.DataFrame, mapping: dict, strict=True) -> pd.DataFrame:
 def get_numeric_columns(data: pd.DataFrame) -> List[str]:
     """Helper function to extract numeric colnames from a dataset."""
     numeric_columns = make_column_selector(
-        pattern="^(?![Tt]arget)",
-        dtype_include=np.number)(data)
+        pattern="^(?![Tt]arget)", dtype_include=np.number
+    )(data)
     return numeric_columns
 
 
 def get_categorical_columns(data: pd.DataFrame) -> List[str]:
     """Helper function to extract categorical colnames from a dataset."""
     categorical_columns = make_column_selector(
-        pattern="^(?![Tt]arget)",
-        dtype_include=[object, bool, cat_dtype])(data)
+        pattern="^(?![Tt]arget)", dtype_include=[object, bool, cat_dtype]
+    )(data)
     return categorical_columns
 
 
-def make_value_map_transforms(features_to_map: List[Feature]) -> List[
-    Tuple[str, FunctionTransformer, List[str]]]:
+def make_value_map_transforms(
+    features_to_map: List[Feature],
+) -> List[Tuple[str, FunctionTransformer, List[str]]]:
     """Helper function to build the mapping transforms for a set of features.
 
     The output of this function can be used as input to a ColumnTransformer.
     """
     transforms = [
-        (f'map_{f.name}',
-         FunctionTransformer(partial(map_values,
-                                     mapping=f.value_mapping),
-                             check_inverse=False,
-                             feature_names_out="one-to-one"),
-         [f.name]) for f in features_to_map]
+        (
+            f"map_{f.name}",
+            FunctionTransformer(
+                partial(map_values, mapping=f.value_mapping),
+                check_inverse=False,
+                feature_names_out="one-to-one",
+            ),
+            [f.name],
+        )
+        for f in features_to_map
+    ]
     return transforms
 
 
-def remove_verbose_prefixes(colnames: List[str], sep='__') -> List[str]:
+def remove_verbose_prefixes(colnames: List[str], sep="__") -> List[str]:
     """Helper function to remove the prefixes added by ColumnTransformer.
 
     Example output: 'map__col1' -> col1, 'scale_featurez' -> featurez, etc.
@@ -433,113 +477,144 @@ class Preprocessor:
     domain_label_transformer: LabelEncoder = None
     feature_list: Optional[FeatureList] = None
 
-    def _get_categorical_transforms(self, data: pd.DataFrame,
-                                    passthrough_columns: List[str]) -> List:
+    def _get_categorical_transforms(
+        self, data: pd.DataFrame, passthrough_columns: List[str]
+    ) -> List:
 
-        cols = [c for c in get_categorical_columns(data) if
-                c not in passthrough_columns]
+        cols = [
+            c for c in get_categorical_columns(data) if c not in passthrough_columns
+        ]
 
         if self.config.categorical_features == "passthrough":
             transforms = []
 
         elif self.config.categorical_features == "one_hot":
             transforms = [
-                (f'onehot_{c}',
-                 OneHotEncoder(dtype=np.int8, categories=[data[c].unique()],
-                               min_frequency=self.config.min_frequency,
-                               max_categories=self.config.max_categories), [c])
-                for c in cols]
+                (
+                    f"onehot_{c}",
+                    OneHotEncoder(
+                        dtype=np.int8,
+                        categories=[data[c].unique()],
+                        min_frequency=self.config.min_frequency,
+                        max_categories=self.config.max_categories,
+                    ),
+                    [c],
+                )
+                for c in cols
+            ]
 
         elif self.config.categorical_features == "map_values":
-            assert self.feature_list is not None, \
+            assert self.feature_list is not None, (
                 "Feature list is required to use value mapping."
-            features_to_map = [f for f in self.feature_list
-                               if f.value_mapping is not None
-                               and f.name in cols]
+            )
+            features_to_map = [
+                f
+                for f in self.feature_list
+                if f.value_mapping is not None and f.name in cols
+            ]
             if not len(features_to_map):
                 # Case: map_values is specified, but there are no features
                 # with mappable values.
                 logging.warning(
                     "No categorical columns with  mappings provided. Either "
                     "provide mappings for one or more columns or set "
-                    "categorical_columns='passthrough' in the feature config.")
+                    "categorical_columns='passthrough' in the feature config."
+                )
                 transforms = []
             else:
                 # Case: there are categorical features to map.
                 transforms = make_value_map_transforms(features_to_map)
 
         elif self.config.categorical_features == "label_encode":
-            transforms = [(f'le_{c}',
-                           OrdinalEncoder(handle_unknown='use_encoded_value',
-                                          unknown_value=-2,
-                                          encoded_missing_value=-1),
-                           [c])
-                          for c in cols]
+            transforms = [
+                (
+                    f"le_{c}",
+                    OrdinalEncoder(
+                        handle_unknown="use_encoded_value",
+                        unknown_value=-2,
+                        encoded_missing_value=-1,
+                    ),
+                    [c],
+                )
+                for c in cols
+            ]
 
         else:
-            raise ValueError(f"{self.config.categorical_features} is not "
-                             "a valid categorical preprocessor type.")
+            raise ValueError(
+                f"{self.config.categorical_features} is not "
+                "a valid categorical preprocessor type."
+            )
         return transforms
 
-    def _get_numeric_transforms(self, data: pd.DataFrame,
-                                passthrough_columns: List[str] = None) -> List:
+    def _get_numeric_transforms(
+        self, data: pd.DataFrame, passthrough_columns: List[str] = None
+    ) -> List:
 
-        cols = [c for c in get_numeric_columns(data)
-                if c not in passthrough_columns]
+        cols = [c for c in get_numeric_columns(data) if c not in passthrough_columns]
 
         if self.config.numeric_features == "passthrough":
             transforms = []
 
         elif self.config.numeric_features == "map_values":
-            assert self.feature_list is not None, \
+            assert self.feature_list is not None, (
                 "Feature list is required to use value mapping."
-            features_to_map = [f for f in self.feature_list
-                               if f.value_mapping is not None
-                               and f.name in cols]
+            )
+            features_to_map = [
+                f
+                for f in self.feature_list
+                if f.value_mapping is not None and f.name in cols
+            ]
             if not len(features_to_map):
                 # Case: map_values is specified, but there are no features
                 # with mappable values.
                 logging.warning(
                     "No numeric columns with mappings provided. Either provide "
                     "mappings for one or more columns or set "
-                    "numeric_columns='passthrough' in the feature config.")
+                    "numeric_columns='passthrough' in the feature config."
+                )
                 transforms = []
             else:
                 # Case: there are features with mappable values.
                 transforms = make_value_map_transforms(features_to_map)
 
         elif self.config.numeric_features == "normalize":
-            transforms = [(f'scale_{c}', StandardScaler(), [c]) for c in cols]
+            transforms = [(f"scale_{c}", StandardScaler(), [c]) for c in cols]
 
         elif self.config.numeric_features == "kbins":
-            transforms = [("kbin", KBinsDiscretizer(encode="ordinal",
-                                                    n_bins=self.config.n_bins),
-                           cols)]
+            transforms = [
+                (
+                    "kbin",
+                    KBinsDiscretizer(encode="ordinal", n_bins=self.config.n_bins),
+                    cols,
+                )
+            ]
 
         else:
-            raise ValueError(f"{self.config.numeric_features} is not "
-                             f"a valid numeric preprocessor type.")
+            raise ValueError(
+                f"{self.config.numeric_features} is not "
+                f"a valid numeric preprocessor type."
+            )
         return transforms
 
     def _post_transform_summary(self, data: pd.DataFrame):
         logging.debug("printing post-transform feature summary")
         if self.config.numeric_features == "kbins":
             for c in data.columns:
-                if "kbin" in c: logging.info(f"{c}:{data[c].unique().tolist()}")
+                if "kbin" in c:
+                    logging.info(f"{c}:{data[c].unique().tolist()}")
         elif self.config.numeric_features == "normalize":
             for c in data.columns:
-                if "scale" in c: logging.info(f"{c}: mean {data[c].mean()}, "
-                                              f"std {data[c].std()}")
+                if "scale" in c:
+                    logging.info(f"{c}: mean {data[c].mean()}, std {data[c].std()}")
 
-    def fit_feature_transformer(self, data, train_idxs: List[int],
-                                passthrough_columns: List[str] = None):
+    def fit_feature_transformer(
+        self, data, train_idxs: List[int], passthrough_columns: List[str] = None
+    ):
         """Fits the feature_transformer defined by this Preprocessor."""
         transforms = []
-        transforms += self._get_numeric_transforms(data,
-                                                   passthrough_columns)
+        transforms += self._get_numeric_transforms(data, passthrough_columns)
 
-        transforms += self._get_categorical_transforms(data,
-                                                       passthrough_columns)
+        transforms += self._get_categorical_transforms(data, passthrough_columns)
 
         # Note that we use the verbose feature names to track which columns are
         # the result of various preprocessing transformations downstream;
@@ -547,9 +622,10 @@ class Preprocessor:
 
         self.feature_transformer = ColumnTransformer(
             transforms,
-            remainder='passthrough',
+            remainder="passthrough",
             sparse_threshold=0,
-            verbose_feature_names_out=True)
+            verbose_feature_names_out=True,
+        )
 
         self.feature_transformer.fit(data.loc[train_idxs, :])
         return
@@ -557,21 +633,22 @@ class Preprocessor:
     def transform_features(self, data) -> pd.DataFrame:
         transformed = self.feature_transformer.transform(data)
         transformed = pd.DataFrame(
-            transformed,
-            columns=self.feature_transformer.get_feature_names_out())
+            transformed, columns=self.feature_transformer.get_feature_names_out()
+        )
 
         return transformed
 
-    def _post_transform(self, transformed: pd.DataFrame,
-                        cast_dtypes: Optional[Mapping] = None) -> pd.DataFrame:
+    def _post_transform(
+        self, transformed: pd.DataFrame, cast_dtypes: Optional[Mapping] = None
+    ) -> pd.DataFrame:
         """Postprocess the result of a ColumnTransformer."""
-        transformed.columns = [c.replace("remainder__", "")
-                               for c in transformed.columns]
+        transformed.columns = [
+            c.replace("remainder__", "") for c in transformed.columns
+        ]
 
         # By default transformed columns will be cast to 'object' dtype; we
         # cast them back to a numeric type.
-        transformed = _transformed_columns_to_numeric(transformed, "onehot_",
-                                                      np.int8)
+        transformed = _transformed_columns_to_numeric(transformed, "onehot_", np.int8)
         transformed = _transformed_columns_to_numeric(transformed, "scale_")
         # Cast the specified columns back to their original types
         if cast_dtypes:
@@ -580,11 +657,9 @@ class Preprocessor:
         transformed.columns = remove_verbose_prefixes(transformed.columns)
 
         if self.config.use_extended_names:
-            transformed.columns = self.map_names_extended(
-                transformed.columns.tolist())
+            transformed.columns = self.map_names_extended(transformed.columns.tolist())
         elif self.config.sub_illegal_chars:
-            transformed.columns = [sub_illegal_chars(c) for c in
-                                   transformed.columns]
+            transformed.columns = [sub_illegal_chars(c) for c in transformed.columns]
 
         return transformed
 
@@ -607,11 +682,13 @@ class Preprocessor:
         logging.debug(
             f"dropped {start_len - len(data)} rows "
             f"containing missing values "
-            f"({(start_len - len(data)) * 100 / start_len}% of data).")
+            f"({(start_len - len(data)) * 100 / start_len}% of data)."
+        )
         data.reset_index(drop=True, inplace=True)
         if not len(data):
-            raise ValueError(f"Data is empty after applying dropna="
-                             f"{self.config.dropna}")
+            raise ValueError(
+                f"Data is empty after applying dropna={self.config.dropna}"
+            )
         return data
 
     def _check_inputs(self, data):
@@ -621,23 +698,30 @@ class Preprocessor:
                 if char in colname:
                     raise ValueError(
                         f"[ERROR] illegal character {char} in column name "
-                        f"{colname}; this will likely lead to an error.")
+                        f"{colname}; this will likely lead to an error."
+                    )
                 if "__" in colname:
-                    raise ValueError(f"Double underscore '__' prohibited in "
-                                     f"column names; got {colname}")
+                    raise ValueError(
+                        f"Double underscore '__' prohibited in "
+                        f"column names; got {colname}"
+                    )
 
     def fit_transform_domain_labels(self, x: pd.Series):
         if self.config.domain_labels == "label_encode":
             self.domain_label_transformer = LabelEncoder()
             return self.domain_label_transformer.fit_transform(x)
         else:
-            raise NotImplementedError(f"Method {self.config.domain_labels} not "
-                                      f"implemented.")
+            raise NotImplementedError(
+                f"Method {self.config.domain_labels} not implemented."
+            )
 
-    def get_passthrough_columns(self, data: pd.DataFrame,
-                                passthrough_columns: List[str] = None,
-                                domain_label_colname: Optional[str] = None,
-                                target_colname: Optional[str] = None):
+    def get_passthrough_columns(
+        self,
+        data: pd.DataFrame,
+        passthrough_columns: List[str] = None,
+        domain_label_colname: Optional[str] = None,
+        target_colname: Optional[str] = None,
+    ):
         if passthrough_columns is None:
             passthrough_columns = []
 
@@ -649,16 +733,21 @@ class Preprocessor:
 
         elif self.config.numeric_features == "map_values":
             # add any unmapped numeric columns
-            unmapped_numerics = [f for f in get_numeric_columns(data) if self.feature_list[f].value_mapping is None]
+            unmapped_numerics = [
+                f
+                for f in get_numeric_columns(data)
+                if self.feature_list[f].value_mapping is None
+            ]
             passthrough_columns += unmapped_numerics
 
         if self.config.categorical_features == "passthrough":
             passthrough_columns += get_categorical_columns(data)
 
-        if domain_label_colname and (
-                domain_label_colname not in passthrough_columns):
-            logging.debug(f"adding domain label column {domain_label_colname} "
-                          f"to passthrough columns")
+        if domain_label_colname and (domain_label_colname not in passthrough_columns):
+            logging.debug(
+                f"adding domain label column {domain_label_colname} "
+                f"to passthrough columns"
+            )
             passthrough_columns.append(domain_label_colname)
         if not self.config.map_targets:
             passthrough_columns.append(target_colname)
@@ -667,40 +756,46 @@ class Preprocessor:
 
     def map_names_extended(self, colnames: List[str]) -> List[str]:
         """Map the original feature names to any extended feature names."""
-        assert self.feature_list is not None, \
+        assert self.feature_list is not None, (
             "Feature list is required to map extended feature names."
+        )
         names_out = []
         for c in colnames:
-            if (self.feature_list[c].name_extended is not None) and \
-                    (self.config.map_targets
-                     or not self.feature_list[c].is_target):
+            if (self.feature_list[c].name_extended is not None) and (
+                self.config.map_targets or not self.feature_list[c].is_target
+            ):
                 names_out.append(self.feature_list[c].name_extended)
             else:
                 names_out.append(c)
         return names_out
 
-    def fit_transform(self, data: pd.DataFrame, train_idxs: List[int],
-                      domain_label_colname: Optional[str] = None,
-                      target_colname: Optional[str] = None,
-                      passthrough_columns: List[str] = None) -> pd.DataFrame:
+    def fit_transform(
+        self,
+        data: pd.DataFrame,
+        train_idxs: List[int],
+        domain_label_colname: Optional[str] = None,
+        target_colname: Optional[str] = None,
+        passthrough_columns: List[str] = None,
+    ) -> pd.DataFrame:
         """Fit a feature_transformer and apply it to the input features."""
         logging.info(f"transforming columns")
         if self.config.passthrough_columns == "all":
-            logging.info("passthrough is 'all'; data will not be preprocessed "
-                         "by tableshift.")
+            logging.info(
+                "passthrough is 'all'; data will not be preprocessed by tableshift."
+            )
             if self.config.use_extended_names:
                 logging.warning(
                     "passthrough is 'all' but "
                     "config.use_extended_names is True; extended "
                     "names are not applied when passthrough is 'all'. Try "
                     "setting numeric_columns='passthough', "
-                    "categorical_columns='passthrough' instead.")
+                    "categorical_columns='passthrough' instead."
+                )
             return data
 
         passthrough_columns = self.get_passthrough_columns(
-            data,
-            passthrough_columns,
-            target_colname=target_colname)
+            data, passthrough_columns, target_colname=target_colname
+        )
 
         # All non-domain label passthrough columns will be cast to their
         # original type post-transformation (ColumnTransformer actually casts
@@ -708,9 +803,10 @@ class Preprocessor:
         dtypes_in = data.dtypes.to_dict()
 
         post_transform_cast_dtypes = (
-            {c: dtypes_in[c] for c in passthrough_columns if
-             c != domain_label_colname}
-            if passthrough_columns else None)
+            {c: dtypes_in[c] for c in passthrough_columns if c != domain_label_colname}
+            if passthrough_columns
+            else None
+        )
 
         self._check_inputs(data)
 
@@ -719,13 +815,14 @@ class Preprocessor:
         transformed = self.transform_features(data)
 
         transformed = self._post_transform(
-            transformed, cast_dtypes=post_transform_cast_dtypes)
+            transformed, cast_dtypes=post_transform_cast_dtypes
+        )
 
         if domain_label_colname:
             # Case: fit the domain label transformer and apply it.
-            transformed.loc[:, domain_label_colname] = \
-                self.fit_transform_domain_labels(
-                    transformed.loc[:, domain_label_colname])
+            transformed.loc[:, domain_label_colname] = self.fit_transform_domain_labels(
+                data.loc[:, domain_label_colname]
+            )
         self._post_transform_summary(transformed)
         logging.info("transforming columns complete.")
         return transformed
