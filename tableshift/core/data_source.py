@@ -140,7 +140,7 @@ class ANESDataSource(DataSource):
         years: Optional[Sequence] = None,
         preprocess_fn=preprocess_anes,
         resources=(
-            "anes_timeseries_cdf_csv_20220916/anes_timeseries_cdf_csv_20220916.csv",
+            "anes_timeseries_cdf_csv_20220916/anes_timeseries_2020_csv_20220210.csv",
         ),
         **kwargs,
     ):
