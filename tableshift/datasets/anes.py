@@ -779,12 +779,10 @@ ANES_FEATURES = FeatureList(
 
 def preprocess_anes(df: pd.DataFrame) -> pd.DataFrame:
     df = df.dropna(subset=[ANES_FEATURES.target])
-    df.loc[:, ANES_FEATURES.target] = (
-        df[ANES_FEATURES.target].astype(float) == 2.0
-    ).astype(int)
+    df[ANES_FEATURES.target] = (df[ANES_FEATURES.target].astype(float) == 2.0).astype(
+        int
+    )
     for f in ANES_FEATURES.features:
         if f.kind == cat_dtype:
-            df.loc[:, f.name] = (
-                df[f.name].fillna("no answer").apply(str).astype("category")
-            )
+            df[f.name] = df[f.name].fillna("no answer").apply(str).astype("category")
     return df

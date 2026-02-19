@@ -169,7 +169,7 @@ class ANESDataSource(DataSource):
         fp = os.path.join(self.cache_dir, self.resources[0])
         df = pd.read_csv(fp, low_memory=False, na_values=(" "))
         if self.years:
-            df = df[df["VCF0004"].isin(self.years)]
+            df = df.loc[df["VCF0004"].isin(self.years)].copy()
         return df
 
 
@@ -306,10 +306,12 @@ class BRFSSDataSource(DataSource):
         self, task: str, preprocess_fn=preprocess_brfss, years=(2021,), **kwargs
     ):
         self.years = years
-        resources = tuple([
-            f"https://www.cdc.gov/brfss/annual_data/{y}/files/LLCP{y}XPT.zip"
-            for y in self.years
-        ])
+        resources = tuple(
+            [
+                f"https://www.cdc.gov/brfss/annual_data/{y}/files/LLCP{y}XPT.zip"
+                for y in self.years
+            ]
+        )
         _preprocess_fn = partial(preprocess_fn, task=task)
         super().__init__(preprocess_fn=_preprocess_fn, resources=resources, **kwargs)
 
